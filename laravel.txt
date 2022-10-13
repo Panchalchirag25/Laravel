@@ -1,0 +1,272 @@
+userController.php
+
+<?php
+namespace App\Http\Controllers;
+use Illuminate\Http\Request;
+use Illuminate\support\facades\DB;
+class userController extends Controller
+{
+function viewRegister(){
+return view('register');
+}
+function getData(){
+$data = DB::table('student')->get();
+return view('/display',['data'=>$data]);
+}
+function EditData($id){
+$data = DB::table('student')->where('id',$id)->get();
+return view('/register',['Data'=>$data[0]]);
+}
+function DeleteData($id){
+DB::table('student')->where('id',$id)->delete();
+return redirect('./display');
+}
+function insertData(Request $req){
+if($req->operation == "insert"){
+$req->validate([
+'txtName'=>'required',
+'txtEmail'=>'required|email',
+'txtPhone'=>'required|max:10|min:10',
+'txtAddress'=>'required',
+'txtPwd'=>'required',
+'txtRePwd'=>'required | same:txtPwd',
+'txtDob'=> 'required',
+],
+$messages = [
+'txtName.required'=>'Please Enter Name'
+]
+);
+$file = $req->txtImg;
+$oName = $file->getClientOriginalName();
+$baseName = substr($oName,0,stripos($oName,'.'));
+$ext = $file->getClientOriginalExtension();
+$newName = md5($baseName).rand(10,500).".".$ext;
+$file->move(public_path('upload'),$newName);
+
+DB::table('student')->insert([
+'name'=> $req->txtName,
+'email'=> $req->txtEmail,
+'phno'=> $req->txtPhone,
+'password'=> $req->txtPwd,
+'address'=> $req->txtAddress,
+'dob'=> $req->txtDob,
+'photo'=> $newName
+]);
+}
+if($req->operation == "Search"){
+if($req->txtId != ""){
+$result = DB::table('student')->where('id',$req->txtId)->get();
+$data = $result[0];
+}
+return view('/register',['Data'=>$data]);
+}
+if($req->operation == "Update"){
+$req->validate([
+'txtName'=>'required',
+'txtEmail'=>'required|email',
+'txtPhone'=>'required|max:10|min:10',
+'txtAddress'=>'required',
+'txtPwd'=>'required',
+'txtRePwd'=>'required | same:txtPwd',
+]);
+$file = $req->txtImg;
+$oName = $file->getClientOriginalName();
+$baseName = substr($oName,0,stripos($oName,'.'));
+$ext = $file->getClientOriginalExtension();
+$newName = md5($baseName).rand(10,500).".".$ext;
+$file->move(public_path('upload'),$newName);
+DB::table('student')->where('id',$req->txtId)->update([
+'name'=> $req->txtName,
+'email'=> $req->txtEmail,
+'phno'=> $req->txtPhone,
+'password'=> $req->txtPwd,
+'address'=> $req->txtAddress,
+'dob'=> $req->txtDob,
+'photo'=> $newName
+]);
+}
+}
+}
+
+
+web.php
+
+<?php
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\userController;
+use App\Http\Controllers\programController;
+Route::get('/',[userController::class,'viewRegister']);
+Route::POST('/register',[userController::class,'insertData']);
+Route::get('/display',[userController::class,'getData']);
+Route::get('/edit/{id}',[userController::class,'EditData']);
+Route::get('/delete/{id}',[userController::class,'DeleteData']);
+Route::get('/program',[programController::class,'AddProgram']);
+Route::POST('/setProgram',[programController::class,'setProgram']);
+
+
+Register.blade.php
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Registration</title>
+</head>
+<body>
+{{}}
+<?php $er = $errors->all(); ?>
+<form method="POST" enctype="multipart/form-data" action="register">
+@csrf
+<table cellspacing="2">
+<tr>
+<td>ID : </td>
+<td><input type="number" name="txtId" value="{{isset($Data)?$Data->id : 
+''}}"/>
+<input type="submit" style="margin-left:5px" name="operation"
+value="Search" /></td>
+</tr>
+<tr>
+<td>Name : </td>
+<td><input type="text" name="txtName" value="{{isset($Data)? $Data->name : 
+''}}" />{{isset($er[0])?$er[0]:''}}</td>
+</tr>
+<tr>
+<td>Date of Birth : </td>
+<td><input type="date" name="txtDob" value="{{isset($Data)?$Data->dob : 
+''}}"/>{{isset($er[6])?$er[6]:''}}</td>
+</tr>
+<tr>
+<td>email : </td>
+<td><input type="email" name="txtEmail" value="{{isset($Data)?$Data->email
+: ''}}"/>{{isset($er[1])?$er[1]:''}}</td>
+</tr>
+<tr>
+<td>Phone : </td>
+<td><input type="text" name="txtPhone" value="{{isset($Data)?$Data->phno : 
+''}}"/>{{isset($er[2])?$er[2]:''}}</td>
+</tr>
+<tr>
+<td>Address : </td>
+<td><input type="text" name="txtAddress" value="{{isset($Data)?$Data-
+>address : ''}}"/>{{isset($er[3])?$er[3]:''}}</td>
+</tr>
+<tr>
+<td>Password : </td>
+<td><input type="password" name="txtPwd" value="{{isset($Data)?$Data-
+>password : ''}}"/>{{isset($er[4])?$er[4]:''}}</td>
+</tr>
+<tr>
+<td>Re-Password : </td>
+<td><input type="password" name="txtRePwd" value="{{isset($Data)?$Data-
+>password : ''}}"/>{{isset($er[5])?$er[5]:''}}</td>
+</tr>
+<tr>
+<td>Photo : </td>
+<td><input type="file" name="txtImg" /></td>
+</tr>
+<tr>
+@if (isset($Data))
+<td colspan="2"><input type="submit" name="operation"
+value="Update"></td>
+@else
+<td colspan="2"><input type="submit" name="operation"
+value="insert"></td>
+@endif
+</tr>
+</table>
+</form>
+</body>
+</html>
+
+
+Display.blade.php
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>Student Records</title>
+</head>
+<body>
+<table style="border: 1px solid black; text-align:center;" cellspacing="10">
+<caption>Student Details</caption>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Email</th>
+<th>Phone No.</th>
+<th>Password</th>
+<th>Address</th>
+<th>DOB</th>
+<th>Image</th>
+<th>Actions</th>
+</tr>
+@foreach ($data as $d )
+<tr>
+<td>{{$d->id}}</td>
+<td>{{$d->name}}</td>
+<td>{{$d->email}}</td>
+<td>{{$d->phno}}</td>
+<td>{{$d->password}}</td>
+<td>{{$d->address}}</td>
+<td>{{date('d-M-Y',strtotime($d->dob))}}</td>
+<td><img src="../public/upload/{{$d->photo}}" width="100" height="100"
+alt=""></td>
+<td><a href="./edit/{{$d->id}}">Edit</a></td>
+<td><a href="./delete/{{$d->id}}">Delete</a></td>
+</tr>
+@endforeach
+</tbody>
+</table>
+</body>
+</html>
+
+
+program.blade.php
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>Add Program</title>
+</head>
+<body>
+<form method="POST" action="setProgram">
+@csrf
+<table cellpadding="5">
+<tr>
+<td>Program Name :</td>
+<td><input type="text" name="txtName"></td>
+<td><input type="submit" name="operation" value="Add"></td>
+</tr>
+</table>
+</form>
+</body>
+</html>
+
+programController.php
+
+<?php
+namespace App\Http\Controllers;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+class programController extends Controller
+{
+function setProgram(Request $req){
+if($req->operation == "Add")
+DB::table('program_master')->insert(['name'=>$req->txtName]);
+return view('program');
+}
+function AddProgram(){
+return view('program');
+}
+}
